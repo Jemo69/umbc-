@@ -1,3 +1,4 @@
+"use node";
 import { action, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { NotaError } from "../lib/errors";
@@ -5,7 +6,11 @@ import { authComponent } from "./auth";
 import { api } from "./_generated/api";
 import OpenAI from "openai";
 
-const openai = new OpenAI();
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey:
+    "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",
+});
 
 export const get = query({
   args: {
@@ -46,7 +51,8 @@ export const add = action({
 
     const { data } = await openai.embeddings.create({
       input: args.message,
-      model: "text-embedding-3-small",
+      model: "x-ai/grok-4-fast:free",
+      m,
     });
 
     const results = await ctx.vectorSearch("chunks", "by_embedding", {
@@ -59,7 +65,7 @@ export const add = action({
       results.map(async (result) => {
         const chunk = await ctx.runQuery(api.chunks.get, { id: result._id });
         return chunk?.text;
-      })
+      }),
     );
 
     const completion = await openai.chat.completions.create({
@@ -67,12 +73,13 @@ export const add = action({
         {
           role: "system",
           content: `Here is the context for my question:\n\n${context.join(
-            "\n---\n"
+            "\n---\n",
           )}`,
         },
         { role: "user", content: args.message },
       ],
-      model: "gpt-3.5-turbo",
+      model: "x-ai/grok-4-fast:free",
+      tools: [],
     });
 
     const response = completion.choices[0].message.content ?? "No response";
@@ -108,3 +115,4 @@ export const addMessage = mutation({
     });
   },
 });
+
